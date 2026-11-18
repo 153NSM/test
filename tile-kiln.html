@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>타일 가마</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+  [hidden] { display: none !important; }
+  body { margin: 0; }
+  /* Layout: 가마 속 타일 판(보드)을 가운데 두고, 옆(휴대폰에선 위)에 다음 조각·보관·기록, 아래에 손가락 조작 버튼 */
+  :root {
+    --bg: #ece8e1;          /* 초벌 점토 */
+    --panel: #f8f6f2;
+    --ink: #2a2622;
+    --muted: #6f665d;
+    --line: #d4cdc3;
+    --well: #ddd6cb;        /* 판 바닥 */
+    --grid: #cfc6b9;
+    --accent: #b5532f;      /* 가마 불빛 */
+    --accent-ink: #ffffff;
+    /* 유약 일곱 가지 */
+    --g-i: #3f8f8a;  /* 청자 */
+    --g-o: #d6a43a;  /* 황유 */
+    --g-t: #7a4f8c;  /* 자색유 */
+    --g-s: #5e8c3e;  /* 녹유 */
+    --g-z: #a63d32;  /* 진사 */
+    --g-j: #2f5d9e;  /* 코발트 */
+    --g-l: #8a5a34;  /* 천목 */
+    --font-display: "Black Han Sans", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+    --font-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    --font-data: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1b1815; --panel: #25211d; --ink: #efe9e1; --muted: #a99d90; --line: #3a342e;
+      --well: #14110f; --grid: #2a2520; --accent: #e07a4f; --accent-ink: #1b1815;
+      --g-i: #56b3ac; --g-o: #e6b94f; --g-t: #a274b6; --g-s: #7fb35a; --g-z: #d05a4c; --g-j: #5486d1; --g-l: #b47b4d;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #1b1815; --panel: #25211d; --ink: #efe9e1; --muted: #a99d90; --line: #3a342e;
+    --well: #14110f; --grid: #2a2520; --accent: #e07a4f; --accent-ink: #1b1815;
+    --g-i: #56b3ac; --g-o: #e6b94f; --g-t: #a274b6; --g-s: #7fb35a; --g-z: #d05a4c; --g-j: #5486d1; --g-l: #b47b4d;
+    color-scheme: dark;
+  }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 15px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 16px 24px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .app { max-width: 620px; margin: 0 auto; display: grid; gap: 14px; }
+  header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  h1 { font-family: var(--font-display); font-weight: 400; font-size: 2rem; margin: 0; letter-spacing: 0.02em; }
+  h1 span { color: var(--accent); }
+  .sub { margin: 0; color: var(--muted); font-size: 0.85rem; }
+
+  .stage { display: grid; grid-template-columns: minmax(0, 1fr) 150px; gap: 16px; align-items: start; }
+  .board-wrap { position: relative; justify-self: center; width: min(100%, 320px); }
+  canvas#board {
+    display: block; width: 100%; aspect-ratio: 1 / 2; max-width: 100%;
+    background: var(--well); border-radius: 6px;
+    box-shadow: inset 0 0 0 1px var(--line);
+    touch-action: none;
+  }
+  .overlay {
+    position: absolute; inset: 0; display: grid; place-content: center; gap: 12px; text-align: center;
+    background: color-mix(in srgb, var(--bg) 78%, transparent);
+    border-radius: 6px; padding: 16px;
+  }
+  .overlay[hidden] { display: none; }
+  .overlay h2 { font-family: var(--font-display); font-weight: 400; font-size: 1.6rem; margin: 0; }
+  .overlay p { margin: 0; color: var(--muted); font-size: 0.85rem; line-height: 1.5; }
+
+  .side { display: grid; gap: 12px; align-content: start; }
+  .box { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: grid; gap: 6px; }
+  .label { font-size: 0.7rem; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; }
+  .box canvas { display: block; width: 100%; height: auto; }
+  #next { aspect-ratio: 3 / 5; }
+  #hold { aspect-ratio: 3 / 2; }
+  .stats { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; align-items: baseline; }
+  .stats dt { font-size: 0.75rem; color: var(--muted); }
+  .stats dd { margin: 0; text-align: right; font-family: var(--font-data); font-variant-numeric: tabular-nums; font-size: 1rem; }
+
+  button {
+    font: inherit; color: var(--ink); background: var(--panel);
+    border: 1px solid var(--line); border-radius: 8px; padding: 8px 14px; cursor: pointer;
+  }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; padding: 10px 22px; }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .row-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  .pad { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+  .pad button {
+    padding: 14px 0; font-size: 0.85rem; font-weight: 600; touch-action: none; user-select: none; -webkit-user-select: none;
+  }
+  .pad button.wide { grid-column: span 2; }
+  .pad button:active { background: var(--line); }
+  .keys { margin: 0; color: var(--muted); font-size: 0.8rem; line-height: 1.7; }
+  kbd {
+    font-family: var(--font-data); font-size: 0.75rem; border: 1px solid var(--line); border-bottom-width: 2px;
+    border-radius: 4px; padding: 0 5px; background: var(--panel); color: var(--ink);
+  }
+
+  /* 휴대폰: 기록을 위로 한 줄, 판은 가운데 */
+  @media (max-width: 560px) {
+    .stage { grid-template-columns: minmax(0, 1fr); }
+    .app { gap: 10px; }
+    h1 { font-size: 1.6rem; }
+    .sub { display: none; }
+    .stage { gap: 10px; }
+    .side { grid-template-columns: 1fr 1fr 1.6fr; gap: 8px; order: -1; }
+    .box { padding: 6px 8px; gap: 2px; }
+    .stats { gap: 0 6px; }
+    .stats dd { font-size: 0.85rem; }
+    .row-btns { grid-column: span 3; }
+    .row-btns button { padding: 6px 12px; font-size: 0.85rem; }
+    .board-wrap { width: min(100%, 300px, max(180px, calc((100svh - 400px) / 2))); }
+    #next, #hold { aspect-ratio: 3 / 2; }
+    .keys { display: none; }
+  }
+  @media (min-width: 561px) { .pad { display: none; } }
+  @media (hover: none) and (min-width: 561px) { .pad { display: grid; } }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>타일 <span>가마</span></h1>
+    <p class="sub">떨어지는 유약 타일로 가로줄을 채우면 그 줄이 구워져 사라집니다.</p>
+  </header>
+
+  <div class="stage">
+    <div class="board-wrap">
+      <canvas id="board" width="300" height="600" aria-label="게임 판"></canvas>
+      <div class="overlay" id="overlay">
+        <h2 id="ov-title">가마에 불 넣기</h2>
+        <p id="ov-text">줄을 한 번에 많이 채울수록 점수가 커집니다.<br>10줄마다 단계가 올라 더 빨리 떨어집니다.</p>
+        <div><button type="button" class="primary" id="ov-btn">시작</button></div>
+      </div>
+    </div>
+
+    <aside class="side">
+      <div class="box">
+        <div class="label">다음</div>
+        <canvas id="next" width="120" height="200"></canvas>
+      </div>
+      <div class="box">
+        <div class="label">보관</div>
+        <canvas id="hold" width="120" height="80"></canvas>
+      </div>
+      <div class="box stats-box">
+        <dl class="stats">
+          <dt>점수</dt><dd id="score">0</dd>
+          <dt>줄</dt><dd id="lines">0</dd>
+          <dt>단계</dt><dd id="level">1</dd>
+          <dt>최고</dt><dd id="best">0</dd>
+        </dl>
+      </div>
+      <div class="row-btns">
+        <button type="button" id="pause-btn">일시정지</button>
+        <button type="button" id="restart-btn">새 판</button>
+      </div>
+    </aside>
+  </div>
+
+  <div class="pad" aria-label="터치 조작">
+    <button type="button" data-act="left" aria-label="왼쪽">◀</button>
+    <button type="button" data-act="right" aria-label="오른쪽">▶</button>
+    <button type="button" data-act="ccw" aria-label="왼쪽으로 돌리기">↺</button>
+    <button type="button" data-act="cw" aria-label="오른쪽으로 돌리기">↻</button>
+    <button type="button" data-act="soft" aria-label="천천히 내리기">▼</button>
+    <button type="button" data-act="hold" aria-label="보관">보관</button>
+    <button type="button" data-act="hard" class="wide" aria-label="바로 내리기" style="grid-column: span 6">바로 내리기</button>
+  </div>
+
+  <p class="keys">
+    <kbd>←</kbd> <kbd>→</kbd> 옮기기 · <kbd>↑</kbd> 또는 <kbd>X</kbd> 오른쪽으로 돌리기 · <kbd>Z</kbd> 왼쪽으로 돌리기 ·
+    <kbd>↓</kbd> 천천히 내리기 · <kbd>Space</kbd> 바로 내리기 · <kbd>C</kbd> 보관 · <kbd>P</kbd> 일시정지
+  </p>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var COLS = 10, ROWS = 20;
+  var SHAPES = {
+    I: [[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]],
+    O: [[1,1],[1,1]],
+    T: [[0,1,0],[1,1,1],[0,0,0]],
+    S: [[0,1,1],[1,1,0],[0,0,0]],
+    Z: [[1,1,0],[0,1,1],[0,0,0]],
+    J: [[1,0,0],[1,1,1],[0,0,0]],
+    L: [[0,0,1],[1,1,1],[0,0,0]]
+  };
+  var KINDS = ["I","O","T","S","Z","J","L"];
+  var LINE_SCORE = [0, 100, 300, 500, 800];
+
+  var boardCv = document.getElementById("board");
+  var nextCv = document.getElementById("next");
+  var holdCv = document.getElementById("hold");
+  var overlay = document.getElementById("overlay");
+  var ovTitle = document.getElementById("ov-title");
+  var ovText = document.getElementById("ov-text");
+  var ovBtn = document.getElementById("ov-btn");
+  var el = { score: document.getElementById("score"), lines: document.getElementById("lines"),
+             level: document.getElementById("level"), best: document.getElementById("best") };
+
+  var colors = {};
+  function readColors() {
+    var cs = getComputedStyle(document.documentElement);
+    KINDS.forEach(function (k) { colors[k] = cs.getPropertyValue("--g-" + k.toLowerCase()).trim(); });
+    colors.well = cs.getPropertyValue("--well").trim();
+    colors.grid = cs.getPropertyValue("--grid").trim();
+    colors.ink = cs.getPropertyValue("--ink").trim();
+  }
+
+  function loadBest() { try { return Number(localStorage.getItem("tile-kiln-best")) || 0; } catch (e) { return 0; } }
+  function saveBest(v) { try { localStorage.setItem("tile-kiln-best", String(v)); } catch (e) {} }
+
+  var S; // 게임 상태
+  function emptyBoard() { var b = []; for (var r = 0; r < ROWS; r++) b.push(new Array(COLS).fill(null)); return b; }
+
+  function newState() {
+    return { board: emptyBoard(), bag: [], queue: [], cur: null, hold: null, holdUsed: false,
+             score: 0, lines: 0, level: 1, best: loadBest(), mode: "ready",
+             dropAcc: 0, lockTimer: null, lockResets: 0 };
+  }
+
+  function refillBag() {
+    var b = KINDS.slice();
+    for (var i = b.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = b[i]; b[i] = b[j]; b[j] = t; }
+    S.bag = S.bag.concat(b);
+  }
+  function takeNext() {
+    while (S.queue.length < 4) { if (S.bag.length === 0) refillBag(); S.queue.push(S.bag.shift()); }
+    var k = S.queue.shift();
+    while (S.queue.length < 4) { if (S.bag.length === 0) refillBag(); S.queue.push(S.bag.shift()); }
+    return k;
+  }
+  function makePiece(kind) {
+    var m = SHAPES[kind].map(function (r) { return r.slice(); });
+    return { kind: kind, m: m, x: Math.floor((COLS - m[0].length) / 2), y: kind === "I" ? -1 : 0 };
+  }
+
+  function collides(m, x, y) {
+    for (var r = 0; r < m.length; r++) for (var c = 0; c < m[r].length; c++) {
+      if (!m[r][c]) continue;
+      var bx = x + c, by = y + r;
+      if (bx < 0 || bx >= COLS || by >= ROWS) return true;
+      if (by >= 0 && S.board[by][bx]) return true;
+    }
+    return false;
+  }
+  function rotated(m, dir) {
+    var n = m.length, out = [];
+    for (var r = 0; r < n; r++) { out.push([]); for (var c = 0; c < n; c++) {
+      out[r][c] = dir > 0 ? m[n - 1 - c][r] : m[c][n - 1 - r];
+    } }
+    return out;
+  }
+
+  function spawn(kind) {
+    S.cur = makePiece(kind || takeNext());
+    S.holdUsed = kind ? S.holdUsed : false;
+    S.lockTimer = null; S.lockResets = 0; S.dropAcc = 0;
+    if (collides(S.cur.m, S.cur.x, S.cur.y)) gameOver();
+  }
+
+  function onGround() { return collides(S.cur.m, S.cur.x, S.cur.y + 1); }
+  function touchLock() {
+    if (S.lockTimer !== null && S.lockResets < 15) { S.lockTimer = 0; S.lockResets++; }
+  }
+
+  function move(dx) {
+    if (S.mode !== "play") return;
+    if (!collides(S.cur.m, S.cur.x + dx, S.cur.y)) { S.cur.x += dx; touchLock(); draw(); }
+  }
+  function rotate(dir) {
+    if (S.mode !== "play" || S.cur.kind === "O") return;
+    var m = rotated(S.cur.m, dir);
+    var kicks = [[0,0],[-1,0],[1,0],[0,-1],[-2,0],[2,0],[-1,-1],[1,-1]];
+    for (var i = 0; i < kicks.length; i++) {
+      var nx = S.cur.x + kicks[i][0], ny = S.cur.y + kicks[i][1];
+      if (!collides(m, nx, ny)) { S.cur.m = m; S.cur.x = nx; S.cur.y = ny; touchLock(); draw(); return; }
+    }
+  }
+  function softDrop() {
+    if (S.mode !== "play") return;
+    if (!onGround()) { S.cur.y++; S.score += 1; S.dropAcc = 0; updateStats(); draw(); }
+  }
+  function hardDrop() {
+    if (S.mode !== "play") return;
+    var n = 0;
+    while (!onGround()) { S.cur.y++; n++; }
+    S.score += n * 2;
+    lockPiece();
+  }
+  function holdPiece() {
+    if (S.mode !== "play" || S.holdUsed) return;
+    var k = S.cur.kind;
+    if (S.hold) { var h = S.hold; S.hold = k; spawn(h); }
+    else { S.hold = k; spawn(); }
+    S.holdUsed = true;
+    drawSide(); draw();
+  }
+
+  function lockPiece() {
+    var m = S.cur.m, above = false;
+    for (var r = 0; r < m.length; r++) for (var c = 0; c < m[r].length; c++) {
+      if (!m[r][c]) continue;
+      var by = S.cur.y + r;
+      if (by < 0) { above = true; continue; }
+      S.board[by][S.cur.x + c] = S.cur.kind;
+    }
+    if (above) { gameOver(); return; }
+    var cleared = 0;
+    for (var y = ROWS - 1; y >= 0; y--) {
+      if (S.board[y].every(Boolean)) { S.board.splice(y, 1); S.board.unshift(new Array(COLS).fill(null)); cleared++; y++; }
+    }
+    if (cleared) {
+      S.score += LINE_SCORE[cleared] * S.level;
+      S.lines += cleared;
+      S.level = Math.floor(S.lines / 10) + 1;
+    }
+    spawn();
+    updateStats(); drawSide(); draw();
+  }
+
+  function gravityMs() { return Math.max(70, 800 - (S.level - 1) * 75); }
+
+  function updateStats() {
+    if (S.score > S.best) { S.best = S.score; saveBest(S.best); }
+    el.score.textContent = S.score.toLocaleString("ko-KR");
+    el.lines.textContent = S.lines;
+    el.level.textContent = S.level;
+    el.best.textContent = S.best.toLocaleString("ko-KR");
+  }
+
+  // ---------- 그리기 ----------
+  function fitCanvas(cv) {
+    var dpr = window.devicePixelRatio || 1;
+    var w = cv.clientWidth, h = cv.clientHeight;
+    if (!w || !h) return null;
+    if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) {
+      cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+    }
+    var ctx = cv.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { ctx: ctx, w: w, h: h };
+  }
+
+  function tile(ctx, x, y, s, color, alpha) {
+    var p = Math.max(1, s * 0.06), r = s * 0.18;
+    ctx.save();
+    ctx.globalAlpha = alpha == null ? 1 : alpha;
+    ctx.beginPath();
+    ctx.roundRect(x + p, y + p, s - 2 * p, s - 2 * p, r);
+    ctx.fillStyle = color; ctx.fill();
+    if (alpha == null || alpha === 1) {
+      // 유약 광택: 위쪽 밝은 띠, 아래쪽 고인 유약
+      var g = ctx.createLinearGradient(0, y, 0, y + s);
+      g.addColorStop(0, "rgba(255,255,255,0.38)");
+      g.addColorStop(0.45, "rgba(255,255,255,0.04)");
+      g.addColorStop(1, "rgba(0,0,0,0.22)");
+      ctx.fillStyle = g; ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(x + s * 0.34, y + s * 0.3, s * 0.16, s * 0.08, -0.5, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(255,255,255,0.45)"; ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function draw() {
+    var f = fitCanvas(boardCv); if (!f) return;
+    var ctx = f.ctx, s = f.w / COLS;
+    ctx.clearRect(0, 0, f.w, f.h);
+    ctx.strokeStyle = colors.grid; ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (var c = 1; c < COLS; c++) { ctx.moveTo(Math.round(c * s) + 0.5, 0); ctx.lineTo(Math.round(c * s) + 0.5, f.h); }
+    for (var r = 1; r < ROWS; r++) { ctx.moveTo(0, Math.round(r * s) + 0.5); ctx.lineTo(f.w, Math.round(r * s) + 0.5); }
+    ctx.stroke();
+    for (var y = 0; y < ROWS; y++) for (var x = 0; x < COLS; x++) {
+      if (S.board[y][x]) tile(ctx, x * s, y * s, s, colors[S.board[y][x]]);
+    }
+    if (!S.cur) return;
+    var gy = S.cur.y; while (!collides(S.cur.m, S.cur.x, gy + 1)) gy++;
+    var m = S.cur.m;
+    for (var rr = 0; rr < m.length; rr++) for (var cc = 0; cc < m[rr].length; cc++) {
+      if (!m[rr][cc]) continue;
+      if (gy + rr >= 0) tile(ctx, (S.cur.x + cc) * s, (gy + rr) * s, s, colors[S.cur.kind], 0.22);
+    }
+    for (rr = 0; rr < m.length; rr++) for (cc = 0; cc < m[rr].length; cc++) {
+      if (!m[rr][cc] || S.cur.y + rr < 0) continue;
+      tile(ctx, (S.cur.x + cc) * s, (S.cur.y + rr) * s, s, colors[S.cur.kind]);
+    }
+  }
+
+  function drawMini(ctx, kind, cx, cy, s, dim) {
+    var m = SHAPES[kind], minR = 9, maxR = -1, minC = 9, maxC = -1;
+    for (var r = 0; r < m.length; r++) for (var c = 0; c < m[r].length; c++) if (m[r][c]) {
+      minR = Math.min(minR, r); maxR = Math.max(maxR, r); minC = Math.min(minC, c); maxC = Math.max(maxC, c);
+    }
+    var w = (maxC - minC + 1) * s, h = (maxR - minR + 1) * s;
+    for (r = minR; r <= maxR; r++) for (c = minC; c <= maxC; c++) if (m[r][c]) {
+      tile(ctx, cx - w / 2 + (c - minC) * s, cy - h / 2 + (r - minR) * s, s, colors[kind], dim ? 0.35 : null);
+    }
+  }
+
+  function drawSide() {
+    var f = fitCanvas(nextCv);
+    if (f) {
+      f.ctx.clearRect(0, 0, f.w, f.h);
+      var phone = f.h < f.w * 1.2; // 휴대폰에서는 가로로 짧게
+      var count = phone ? 1 : 3;
+      var s = Math.min(f.w / 5, phone ? f.h / 3 : f.h / 10);
+      for (var i = 0; i < count && i < S.queue.length; i++) {
+        drawMini(f.ctx, S.queue[i], f.w / 2, phone ? f.h / 2 : (f.h / 3) * (i + 0.5), i === 0 ? s : s * 0.8);
+      }
+    }
+    var g = fitCanvas(holdCv);
+    if (g) {
+      g.ctx.clearRect(0, 0, g.w, g.h);
+      if (S.hold) drawMini(g.ctx, S.hold, g.w / 2, g.h / 2, Math.min(g.w / 5, g.h / 3), S.holdUsed);
+    }
+  }
+
+  // ---------- 흐름 ----------
+  function showOverlay(title, text, btn) {
+    ovTitle.textContent = title; ovText.textContent = text; ovBtn.textContent = btn;
+    overlay.hidden = false;
+  }
+  function start() {
+    var best = S ? S.best : loadBest();
+    S = newState(); S.best = best;
+    S.mode = "play";
+    spawn();
+    overlay.hidden = true;
+    updateStats(); drawSide(); draw();
+    last = performance.now();
+  }
+  function togglePause() {
+    if (S.mode === "play") { S.mode = "pause"; showOverlay("잠시 쉬는 중", "가마 불은 그대로 있습니다.", "계속"); }
+    else if (S.mode === "pause") { S.mode = "play"; overlay.hidden = true; last = performance.now(); }
+  }
+  function gameOver() {
+    S.mode = "over";
+    S.cur = null;
+    showOverlay("가마가 가득 찼습니다", "점수 " + S.score.toLocaleString("ko-KR") + " · " + S.lines + "줄 · " + S.level + "단계", "다시 하기");
+    updateStats();
+  }
+  ovBtn.addEventListener("click", function () {
+    if (S.mode === "pause") togglePause(); else start();
+  });
+  document.getElementById("pause-btn").addEventListener("click", function () { togglePause(); this.blur(); });
+  document.getElementById("restart-btn").addEventListener("click", function () { start(); this.blur(); });
+
+  var last = performance.now();
+  function frame(now) {
+    var dt = Math.min(100, now - last); last = now;
+    if (S.mode === "play" && S.cur) {
+      if (onGround()) {
+        if (S.lockTimer === null) S.lockTimer = 0;
+        S.lockTimer += dt;
+        if (S.lockTimer >= 500) lockPiece();
+      } else {
+        S.lockTimer = null;
+        S.dropAcc += dt;
+        if (S.dropAcc >= gravityMs()) { S.dropAcc = 0; S.cur.y++; draw(); }
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+
+  // ---------- 입력 ----------
+  var KEYMAP = {
+    ArrowLeft: function () { move(-1); }, ArrowRight: function () { move(1); },
+    ArrowDown: softDrop, ArrowUp: function () { rotate(1); },
+    x: function () { rotate(1); }, X: function () { rotate(1); },
+    z: function () { rotate(-1); }, Z: function () { rotate(-1); },
+    " ": hardDrop, c: holdPiece, C: holdPiece, Shift: holdPiece,
+    p: togglePause, P: togglePause, Escape: togglePause
+  };
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Enter" && S.mode !== "play") { e.preventDefault(); ovBtn.click(); return; }
+    var fn = KEYMAP[e.key];
+    if (!fn) return;
+    e.preventDefault();
+    if (e.repeat && (e.key === " " || e.key === "ArrowUp" || /^[xzcpXZCP]$/.test(e.key))) return;
+    fn();
+  });
+
+  var ACTS = { left: function () { move(-1); }, right: function () { move(1); }, soft: softDrop,
+               cw: function () { rotate(1); }, ccw: function () { rotate(-1); }, hard: hardDrop, hold: holdPiece };
+  var REPEAT = { left: true, right: true, soft: true };
+  document.querySelectorAll(".pad button").forEach(function (b) {
+    var act = b.getAttribute("data-act"), t1 = null, t2 = null;
+    function stop() { clearTimeout(t1); clearInterval(t2); t1 = t2 = null; }
+    b.addEventListener("pointerdown", function (e) {
+      e.preventDefault();
+      if (S.mode === "ready" || S.mode === "over") return;
+      ACTS[act]();
+      if (REPEAT[act]) t1 = setTimeout(function () { t2 = setInterval(ACTS[act], 55); }, 170);
+    });
+    ["pointerup", "pointerleave", "pointercancel"].forEach(function (ev) { b.addEventListener(ev, stop); });
+  });
+
+  // 판을 밀어서도 조작: 좌우로 밀면 옮기기, 톡 치면 돌리기, 아래로 휙 밀면 바로 내리기
+  var sw = null;
+  boardCv.addEventListener("pointerdown", function (e) { if (S.mode === "play") sw = { x: e.clientX, y: e.clientY, t: performance.now(), moved: 0 }; });
+  boardCv.addEventListener("pointermove", function (e) {
+    if (!sw) return;
+    var cell = boardCv.clientWidth / COLS, dx = e.clientX - sw.x;
+    while (dx > cell) { move(1); sw.x += cell; dx -= cell; sw.moved++; }
+    while (dx < -cell) { move(-1); sw.x -= cell; dx += cell; sw.moved++; }
+  });
+  boardCv.addEventListener("pointerup", function (e) {
+    if (!sw) return;
+    var dy = e.clientY - sw.y, dt = performance.now() - sw.t;
+    if (dy > 60 && dt < 300) hardDrop();
+    else if (!sw.moved && Math.abs(dy) < 10 && dt < 250) rotate(1);
+    sw = null;
+  });
+  boardCv.addEventListener("pointercancel", function () { sw = null; });
+
+  document.addEventListener("visibilitychange", function () { if (document.hidden && S.mode === "play") togglePause(); });
+  window.addEventListener("resize", function () { drawSide(); draw(); });
+  var mq = window.matchMedia("(prefers-color-scheme: dark)");
+  function recolor() { readColors(); drawSide(); draw(); }
+  if (mq.addEventListener) mq.addEventListener("change", recolor);
+  new MutationObserver(recolor).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+  // 첫 화면: 빈 판에 첫 조각과 다음 조각을 보여 주고 시작을 기다린다
+  readColors();
+  S = newState();
+  spawn();
+  S.mode = "ready";
+  updateStats(); drawSide(); draw();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
