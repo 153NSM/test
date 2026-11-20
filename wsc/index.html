@@ -2,9 +2,163 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- 외부 연결·폼 전송을 모두 막는다. 진행 기록은 이 휴대폰 브라우저에만 남는다. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#0f1b3d">
+<link rel="icon" href="data:,">
 <title>위대한 만남</title>
+<style>
+  /* 배치: 위에 늘 보이는 '비밀 코드 자물쇠'(G R E A T 다섯 칸), 그 아래 본부 화면 또는 연구실 문제 화면 */
+  :root {
+    --bg: #eef1f7;
+    --surface: #ffffff;
+    --ink: #121a33;
+    --muted: #55607a;
+    --line: #d5dbe8;
+    --navy: #0f1b3d;        /* 회의 본부 */
+    --navy-ink: #f4f1e6;
+    --gold: #c8912a;        /* 코드 글자 */
+    --gold-soft: #f6ead0;
+    --red: #b3263a;         /* 크리스마스 */
+    --ok: #1f7a4d;
+    --ok-soft: #e2f3ea;
+    --bad: #b3263a;
+    --bad-soft: #fbe6e9;
+    --slot-empty: #1c2a55;
+    --font: system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
+    --font-code: ui-monospace, "SF Mono", Menlo, Consolas, "Roboto Mono", monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0a1024; --surface: #131c38; --ink: #eef0f7; --muted: #a3acc4; --line: #26315a;
+      --navy: #070c1c; --navy-ink: #f4f1e6; --gold: #e6b450; --gold-soft: #3a2f17; --red: #e0566b;
+      --ok: #5cc98f; --ok-soft: #123526; --bad: #f07386; --bad-soft: #3d1620; --slot-empty: #1a2547;
+      color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font);
+    font-size: 16px; line-height: 1.6; word-break: keep-all; overflow-wrap: anywhere;
+  }
+  .wrap { max-width: 560px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+  /* 본부 머리 */
+  .hq { background: var(--navy); color: var(--navy-ink); padding-top: env(safe-area-inset-top, 0px); }
+  .hq .wrap { padding-block: 20px 22px; display: grid; gap: 14px; }
+  .eyebrow { margin: 0; font-size: 0.72rem; letter-spacing: 0.18em; font-weight: 700; color: var(--gold); }
+  .hq h1 { margin: 0; font-size: 1.7rem; line-height: 1.25; letter-spacing: -0.01em; }
+  .hq h1 a { color: inherit; text-decoration: none; }
+  .lock { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin: 0; padding: 0; list-style: none; }
+  .slot { display: grid; gap: 4px; justify-items: center; }
+  .slot b {
+    width: 100%; aspect-ratio: 4 / 5; max-width: 72px; display: grid; place-items: center;
+    border-radius: 10px; background: var(--slot-empty); color: #5d6a96;
+    font-family: var(--font-code); font-size: 1.9rem; font-weight: 700;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+  }
+  .slot.on b { background: var(--gold); color: var(--navy); box-shadow: 0 0 0 2px rgba(255,255,255,0.15), 0 6px 18px rgba(200,145,42,0.35); }
+  .slot.new b { animation: pop 0.7s cubic-bezier(.2,1.6,.4,1) both; }
+  .slot small { font-size: 0.7rem; color: #b9c0d8; white-space: nowrap; }
+  @keyframes pop { 0% { transform: scale(0.3) rotate(-12deg); opacity: 0; } 100% { transform: none; opacity: 1; } }
+
+  main.wrap { padding-block: 18px 40px; display: grid; gap: 16px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: grid; gap: 10px; }
+  .card h2 { margin: 0; font-size: 1.2rem; line-height: 1.35; }
+  .card p { margin: 0; }
+  .muted { color: var(--muted); font-size: 0.92rem; }
+  .notice { border-radius: 10px; padding: 10px 12px; background: var(--bad-soft); color: var(--bad); font-size: 0.9rem; }
+
+  /* 연구실 목록 */
+  .labs { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  .labs li { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; }
+  .labs .chip-letter { width: 44px; height: 52px; border-radius: 8px; display: grid; place-items: center; font-family: var(--font-code); font-weight: 700; font-size: 1.3rem; background: var(--bg); color: var(--muted); border: 1px dashed var(--line); }
+  .labs li.done .chip-letter { background: var(--gold); color: var(--navy); border: 0; }
+  .labs .who { font-weight: 700; }
+  .labs .where { font-size: 0.85rem; color: var(--muted); }
+  .state { font-size: 0.78rem; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: var(--bg); color: var(--muted); white-space: nowrap; }
+  .done .state { background: var(--ok-soft); color: var(--ok); }
+
+  /* 연구실 문제 */
+  .lab-head { display: grid; gap: 2px; }
+  .lab-head .eyebrow { color: var(--red); }
+  .place { font-size: 0.85rem; color: var(--muted); }
+  .q { font-weight: 700; font-size: 1.08rem; padding-top: 6px; border-top: 1px solid var(--line); }
+  .choices { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+  .choices button {
+    width: 100%; text-align: left; font: inherit; color: var(--ink); background: var(--bg);
+    border: 1.5px solid var(--line); border-radius: 12px; padding: 12px 14px; cursor: pointer;
+    display: grid; grid-template-columns: 1.8em minmax(0, 1fr); gap: 6px; align-items: start; min-height: 52px;
+  }
+  .choices button .n { font-weight: 700; color: var(--muted); }
+  .choices button:active { transform: scale(0.99); }
+  .choices button.wrong { border-color: var(--bad); background: var(--bad-soft); color: var(--bad); }
+  .choices button.wrong .n { color: var(--bad); }
+  .choices button.right { border-color: var(--ok); background: var(--ok-soft); color: var(--ok); font-weight: 700; }
+  .choices button[disabled] { cursor: default; }
+  .shake { animation: shake 0.4s; }
+  @keyframes shake { 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
+  .feedback { border-radius: 10px; padding: 10px 12px; font-size: 0.95rem; }
+  .feedback.bad { background: var(--bad-soft); color: var(--bad); }
+
+  .reward { text-align: center; justify-items: center; background: var(--navy); color: var(--navy-ink); border: 0; }
+  .reward .eyebrow { color: var(--gold); }
+  .big-letter {
+    width: 108px; height: 132px; border-radius: 16px; display: grid; place-items: center;
+    background: var(--gold); color: var(--navy); font-family: var(--font-code); font-weight: 800; font-size: 4.2rem;
+    animation: pop 0.8s cubic-bezier(.2,1.6,.4,1) both; box-shadow: 0 10px 30px rgba(200,145,42,0.4);
+  }
+  .reward p { color: #d9dcea; }
+  .explain { text-align: left; background: rgba(255,255,255,0.06); border-radius: 10px; padding: 10px 12px; font-size: 0.92rem; }
+
+  .btn {
+    display: inline-flex; justify-content: center; align-items: center; gap: 6px; font: inherit; font-weight: 700;
+    padding: 12px 18px; border-radius: 12px; border: 0; background: var(--red); color: #fff; text-decoration: none; cursor: pointer; min-height: 48px;
+  }
+  .btn.ghost { background: transparent; color: inherit; border: 1.5px solid currentColor; }
+  .btn.small { padding: 8px 12px; min-height: 40px; font-size: 0.9rem; }
+  .btn:focus-visible, .choices button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; }
+
+  /* 완성 · 안내데스크 */
+  .complete { background: var(--navy); color: var(--navy-ink); border: 0; text-align: center; }
+  .complete .code { font-family: var(--font-code); font-weight: 800; font-size: 3rem; letter-spacing: 0.25em; color: var(--gold); margin-right: -0.25em; }
+  .complete p { color: #d9dcea; }
+  .desk { border: 2px solid var(--gold); }
+  .clock { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 10px; border-radius: 10px; background: var(--gold-soft); font-family: var(--font-code); font-variant-numeric: tabular-nums; font-size: 1.25rem; font-weight: 700; }
+  .pulse { width: 12px; height: 12px; border-radius: 50%; background: var(--red); animation: pulse 1s infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.25; transform: scale(0.6); } }
+  .claims { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  .claims li { display: grid; gap: 8px; padding: 12px; border-radius: 12px; border: 1px solid var(--line); }
+  .claims .top { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .claims .name { font-weight: 700; }
+  .claims .st { font-size: 0.85rem; font-weight: 700; color: var(--muted); }
+  .claims .st.ok { color: var(--ok); }
+  .claims .st.wait { color: var(--gold); }
+  .confirm { display: grid; gap: 8px; padding: 10px; border-radius: 10px; background: var(--bg); font-size: 0.9rem; }
+  footer.wrap { padding-block: 0 32px; color: var(--muted); font-size: 0.8rem; text-align: center; }
+  footer button { font: inherit; color: var(--muted); background: none; border: 0; text-decoration: underline; cursor: pointer; padding: 4px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+</style>
 </head>
 <body>
+<header class="hq">
+  <div class="wrap">
+    <p class="eyebrow">WORLD SCIENCE CONGRESS 2026</p>
+    <h1><a href="index.html" id="home-link">위대한 만남</a></h1>
+    <ol class="lock" id="lock" aria-label="모은 비밀 코드"></ol>
+  </div>
+</header>
+<main class="wrap" id="view"></main>
+<footer class="wrap" id="footer"></footer>
+
 <!-- 계산 로직: 화면(DOM)·저장소와 무관한 순수 함수와 연구실 자료. test/wsc-core.test.js가 이 블록만 꺼내 시험한다. -->
 <script id="wsc-core">
 var WscCore = (function () {
@@ -173,6 +327,272 @@ var WscCore = (function () {
     foundCount: foundCount, isComplete: isComplete, collect: collect, slots: slots,
     canClaim: canClaim, claim: claim, formatTime: formatTime
   };
+})();
+</script>
+
+<!-- 화면: 주소의 ?lab=… 에 따라 본부 화면 또는 연구실 문제 화면을 그린다. -->
+<script>
+(function () {
+  "use strict";
+  var W = WscCore;
+  var KEY = "wsc2026-progress";
+  var SHORT = { jang: "장영실", kepler: "케플러", newton: "뉴턴", curie: "퀴리", johnson: "존슨" };
+
+  // ---------- 저장 (이 휴대폰 브라우저에만) ----------
+  var storageOk = true;
+  function load() {
+    try { return W.parseProgress(localStorage.getItem(KEY)); }
+    catch (e) { storageOk = false; return W.emptyProgress(); }
+  }
+  function save(p) {
+    try { localStorage.setItem(KEY, W.serialize(p)); localStorage.getItem(KEY); }
+    catch (e) { storageOk = false; }
+  }
+  var progress = load();
+  // 저장이 막혔는지 미리 확인
+  try { localStorage.setItem(KEY + "-probe", "1"); localStorage.removeItem(KEY + "-probe"); } catch (e) { storageOk = false; }
+
+  // ---------- 작은 DOM 도우미 (textContent만 사용) ----------
+  function h(tag, attrs, children) {
+    var el = document.createElement(tag);
+    if (attrs) for (var k in attrs) {
+      if (k === "class") el.className = attrs[k];
+      else if (k === "text") el.textContent = attrs[k];
+      else if (k.slice(0, 2) === "on") el.addEventListener(k.slice(2), attrs[k]);
+      else el.setAttribute(k, attrs[k]);
+    }
+    (children || []).forEach(function (c) { if (c) el.appendChild(typeof c === "string" ? document.createTextNode(c) : c); });
+    return el;
+  }
+  var view = document.getElementById("view");
+  var lockEl = document.getElementById("lock");
+  var footer = document.getElementById("footer");
+
+  function renderLock(newId) {
+    lockEl.replaceChildren();
+    W.LABS.forEach(function (lab) {
+      var on = !!progress.found[lab.id];
+      lockEl.appendChild(h("li", { class: "slot" + (on ? " on" : "") + (newId === lab.id ? " new" : "") }, [
+        h("b", { text: on ? lab.letter : "?", "aria-label": on ? lab.letter + " 획득" : "아직 없음" }),
+        h("small", { text: SHORT[lab.id] })
+      ]));
+    });
+  }
+
+  function storageNotice() {
+    return storageOk ? null : h("p", { class: "notice", role: "alert",
+      text: "이 브라우저는 기록을 저장할 수 없어요(사생활 보호 모드 등). 다른 연구실로 가면 모은 코드가 사라질 수 있으니, 일반 모드의 기본 브라우저로 QR을 찍어 주세요." });
+  }
+
+  function remainingText() {
+    var left = W.LABS.filter(function (l) { return !progress.found[l.id]; });
+    if (!left.length) return "";
+    return "남은 연구실: " + left.map(function (l) { return l.scientist + "(" + l.place + ")"; }).join(", ");
+  }
+
+  // ---------- 본부 화면 ----------
+  var clockTimer = null;
+  function renderHome() {
+    document.title = "위대한 만남 · 미션 본부";
+    view.replaceChildren();
+    var n = W.foundCount(progress);
+    var note = storageNotice(); if (note) view.appendChild(note);
+
+    if (W.isComplete(progress)) {
+      view.appendChild(h("section", { class: "card complete", "aria-labelledby": "done-title" }, [
+        h("p", { class: "eyebrow", text: "MISSION COMPLETE" }),
+        h("h2", { id: "done-title", text: "5명의 과학자가 다시 만났습니다!" }),
+        h("div", { class: "code", text: W.CODE, "aria-label": "미션 코드 G R E A T" }),
+        h("p", { text: "WORLD SCIENCE CONGRESS 본부의 최종 잠금장치가 열렸어요. 안내데스크에 이 화면을 보여 주세요." }),
+        h("p", { class: "muted", text: "완성 시각 " + W.formatTime(progress.completedAt) })
+      ]));
+    }
+
+    if (n >= 1) view.appendChild(renderDesk());
+
+    if (n === 0) {
+      view.appendChild(h("section", { class: "card" }, [
+        h("p", { class: "eyebrow", text: "PROLOGUE", style: "color: var(--red)" }),
+        h("h2", { text: "사라진 5개의 시크릿 코드" }),
+        h("p", { text: "2026년 크리스마스, 세계 최고의 과학자 5명이 국립중앙과학관에 모였습니다. 장영실, 요하네스 케플러, 아이작 뉴턴, 마리 퀴리, 캐서린 존슨." }),
+        h("p", { text: "그런데 세계과학회의가 시작되기 직전, 과학의 핵심 원리를 담은 5개의 시크릿 코드가 사라졌습니다. 과학자들은 각자의 연구실로 흩어졌고, 여러분은 과학자의 조교가 되어 비밀 코드를 찾아야 합니다." }),
+        h("p", { text: "5개의 코드를 모두 모으면 WORLD SCIENCE CONGRESS 본부의 최종 잠금장치가 열리고, 5명의 과학자의 위대한 만남이 이루어집니다." })
+      ]));
+    }
+
+    var list = h("ul", { class: "labs" });
+    W.LABS.forEach(function (lab) {
+      var done = !!progress.found[lab.id];
+      list.appendChild(h("li", { class: done ? "done" : "" }, [
+        h("span", { class: "chip-letter", text: done ? lab.letter : "?", "aria-hidden": "true" }),
+        h("div", null, [h("div", { class: "who", text: lab.scientist + " · " + lab.lab }), h("div", { class: "where", text: lab.place })]),
+        h("span", { class: "state", text: done ? "코드 획득" : "찾는 중" })
+      ]));
+    });
+    view.appendChild(h("section", { class: "card", "aria-labelledby": "labs-title" }, [
+      h("h2", { id: "labs-title", text: n === 5 ? "모든 연구실 완료" : "연구실 " + n + " / 5 완료" }),
+      h("p", { class: "muted", text: "순서는 자유예요. 전시품 앞의 QR을 찍고 문제를 맞히면 코드 글자를 하나씩 받아요. 틀려도 바로 다시 풀 수 있어요." }),
+      list
+    ]));
+    renderFooter();
+  }
+
+  // ---------- 안내데스크 확인 ----------
+  var pendingClaim = null;
+  function renderDesk() {
+    var n = W.foundCount(progress), complete = W.isComplete(progress);
+    var clock = h("div", { class: "clock", "aria-live": "off" }, [h("span", { class: "pulse", "aria-hidden": "true" }), h("span", { id: "clock-text", text: W.formatTime(Date.now(), true) })]);
+    clearInterval(clockTimer);
+    clockTimer = setInterval(function () {
+      var t = document.getElementById("clock-text");
+      if (t) t.textContent = W.formatTime(Date.now(), true); else clearInterval(clockTimer);
+    }, 1000);
+
+    var items = h("ul", { class: "claims" });
+    [
+      { kind: "calendar", name: "참가 기념 달력", need: "코드 1개 이상" },
+      { kind: "draw", name: "랜덤 선물 뽑기", need: "GREAT 완성" }
+    ].forEach(function (c) {
+      var at = progress.claims[c.kind], can = W.canClaim(progress, c.kind);
+      var st = at ? h("span", { class: "st ok", text: "수령 완료 · " + W.formatTime(at) })
+             : can ? h("span", { class: "st wait", text: "받을 수 있어요" })
+             : h("span", { class: "st", text: c.need + " 시 가능" });
+      var li = h("li", null, [h("div", { class: "top" }, [h("span", { class: "name", text: c.name }), st])]);
+      if (can) {
+        if (pendingClaim === c.kind) {
+          li.appendChild(h("div", { class: "confirm" }, [
+            h("p", { text: "직원 확인: " + c.name + "을(를) 지금 나눠 드렸나요? 확인하면 이 휴대폰에 수령 기록이 남고 되돌릴 수 없어요." }),
+            h("div", { class: "row" }, [
+              h("button", { type: "button", class: "btn small", text: "수령 처리", onclick: function () {
+                progress = W.claim(progress, c.kind, Date.now()); save(progress); pendingClaim = null; renderHome();
+              } }),
+              h("button", { type: "button", class: "btn small ghost", text: "취소", onclick: function () { pendingClaim = null; renderHome(); } })
+            ])
+          ]));
+        } else {
+          li.appendChild(h("div", { class: "row" }, [
+            h("button", { type: "button", class: "btn small ghost", text: "직원용: 수령 확인", onclick: function () { pendingClaim = c.kind; renderHome(); } })
+          ]));
+        }
+      }
+      items.appendChild(li);
+    });
+
+    return h("section", { class: "card desk", "aria-labelledby": "desk-title" }, [
+      h("h2", { id: "desk-title", text: "안내데스크 확인" }),
+      h("p", { class: "muted", text: complete
+        ? "GREAT를 완성했어요! 안내데스크에서 이 화면을 보여 주면 달력과 랜덤 선물 뽑기 기회를 받을 수 있어요."
+        : "코드를 " + n + "개 모았어요. 안내데스크에서 이 화면을 보여 주면 참가 기념 달력을 받을 수 있어요. 5개를 모두 모으면 랜덤 선물 뽑기 기회도 있어요." }),
+      clock,
+      h("p", { class: "muted", text: "시계가 움직이는 실제 화면만 인정돼요. (캡처 화면 불가)", style: "text-align:center; font-size:0.8rem" }),
+      items
+    ]);
+  }
+
+  // ---------- 연구실 화면 ----------
+  function renderLab(lab) {
+    clearInterval(clockTimer);
+    document.title = lab.scientist + " · " + lab.lab;
+    view.replaceChildren();
+    var note = storageNotice(); if (note) view.appendChild(note);
+
+    var already = !!progress.found[lab.id];
+    var feedback = h("p", { class: "feedback bad", role: "status", hidden: "" });
+    var list = h("ol", { class: "choices" });
+    var card = h("section", { class: "card", "aria-labelledby": "q-title" }, [
+      h("div", { class: "lab-head" }, [
+        h("p", { class: "eyebrow", text: lab.scientist + " 연구실" }),
+        h("h2", { id: "q-title", text: lab.lab + " : " + lab.title }),
+        h("p", { class: "place", text: "위치 · " + lab.place })
+      ]),
+      h("p", { text: lab.story }),
+      h("p", { class: "q", text: "Q. " + lab.question }),
+      list, feedback
+    ]);
+
+    var buttons = lab.choices.map(function (text, i) {
+      var b = h("button", { type: "button" }, [h("span", { class: "n", text: "①②③④⑤"[i] }), h("span", { text: text })]);
+      b.addEventListener("click", function () { choose(i, b); });
+      list.appendChild(h("li", null, [b]));
+      return b;
+    });
+
+    function choose(i, b) {
+      if (W.checkAnswer(lab.id, i)) {
+        buttons.forEach(function (x) { x.disabled = true; });
+        b.classList.add("right");
+        feedback.hidden = true;
+        var isNew = !progress.found[lab.id];
+        progress = W.collect(progress, lab.id, Date.now());
+        save(progress);
+        renderLock(isNew ? lab.id : null);
+        showReward(false);
+      } else {
+        b.classList.add("wrong");
+        b.setAttribute("aria-label", "오답: " + lab.choices[i]);
+        feedback.hidden = false;
+        feedback.textContent = "아쉬워요! 전시품을 다시 관찰하고 다른 답을 골라 보세요.";
+        card.classList.remove("shake"); void card.offsetWidth; card.classList.add("shake");
+      }
+    }
+
+    function showReward(revisit) {
+      var complete = W.isComplete(progress);
+      var reward = h("section", { class: "card reward", "aria-labelledby": "rw-title", tabindex: "-1" }, [
+        h("p", { class: "eyebrow", text: revisit ? "이미 찾은 코드" : "정답! 시크릿 코드 획득" }),
+        h("div", { class: "big-letter", text: lab.letter, "aria-hidden": "true" }),
+        h("h2", { id: "rw-title", text: lab.scientist + "의 코드는 " + lab.letter + "!" }),
+        h("p", { class: "explain", text: lab.explain }),
+        h("p", { text: complete ? "5개의 코드를 모두 모았어요! 미션 본부에서 GREAT를 확인하고 안내데스크로 가세요." : "코드 " + W.foundCount(progress) + " / 5. " + remainingText() }),
+        h("div", { class: "row", style: "justify-content:center" }, [
+          h("a", { class: "btn", href: "index.html", text: complete ? "GREAT 완성 화면 보기" : "미션 본부로 가기" })
+        ])
+      ]);
+      if (revisit) { view.replaceChildren(); if (note) view.appendChild(note); }
+      view.appendChild(reward);
+      if (!revisit) { reward.focus({ preventScroll: true }); reward.scrollIntoView({ behavior: "smooth", block: "start" }); }
+    }
+
+    if (already) showReward(true); else view.appendChild(card);
+    renderFooter();
+  }
+
+  function renderUnknown() {
+    view.replaceChildren(h("section", { class: "card" }, [
+      h("h2", { text: "연구실을 찾을 수 없어요" }),
+      h("p", { text: "QR 주소가 잘못되었어요. 전시품 앞의 QR을 다시 찍거나 미션 본부로 가세요." }),
+      h("div", { class: "row" }, [h("a", { class: "btn", href: "index.html", text: "미션 본부로 가기" })])
+    ]));
+    renderFooter();
+  }
+
+  // 기록 지우기: 실수로 누르지 않도록 두 번 확인
+  var resetStep = 0;
+  function renderFooter() {
+    footer.replaceChildren(
+      h("p", { text: "진행 기록은 이 휴대폰 브라우저에만 저장되고 어디로도 보내지 않아요. 같은 휴대폰·같은 브라우저로 QR을 찍어 주세요." }),
+      h("p", null, [h("button", { type: "button", text: resetStep ? "정말 지울까요? 한 번 더 누르면 모은 코드가 모두 사라져요" : "기록 지우기", onclick: function () {
+        if (!resetStep) { resetStep = 1; renderFooter(); return; }
+        resetStep = 0;
+        progress = W.emptyProgress();
+        try { localStorage.removeItem(KEY); } catch (e) {}
+        location.href = "index.html";
+      } })])
+    );
+  }
+
+  // ---------- 시작 ----------
+  var id = new URLSearchParams(location.search).get("lab");
+  renderLock(null);
+  if (id === null) renderHome();
+  else { var lab = W.findLab(id); if (lab) renderLab(lab); else renderUnknown(); }
+
+  // 다른 탭에서 기록이 바뀌면 맞춘다
+  window.addEventListener("storage", function (e) {
+    if (e.key !== KEY) return;
+    progress = load(); renderLock(null);
+    if (id === null) renderHome();
+  });
 })();
 </script>
 </body>
