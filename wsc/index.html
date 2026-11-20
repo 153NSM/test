@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>위대한 만남</title>
+</head>
+<body>
+<!-- 계산 로직: 화면(DOM)·저장소와 무관한 순수 함수와 연구실 자료. test/wsc-core.test.js가 이 블록만 꺼내 시험한다. -->
+<script id="wsc-core">
+var WscCore = (function () {
+  "use strict";
+
+  var CODE = "GREAT";
+
+  // 연구실 자료. 정답은 그대로 적지 않고 answerHash로만 비교한다.
+  var LABS = [
+    {
+      id: "jang", letter: "G", scientist: "장영실", lab: "앙부일구", title: "「그림자의 비밀」을 밝혀라",
+      place: "앙부일구 전시품 앞",
+      story: "앙부일구는 무엇을 이용해 시간을 측정했을까요? 전시품을 자세히 관찰하세요.",
+      question: "그림자의 방향과 위치가 달라지는 이유는?",
+      choices: ["지구의 자전", "물의 흐름", "달의 크기의 변화", "바람"],
+      answerHash: "174bc420",
+      explain: "지구가 하루에 한 바퀴씩 자전하면서 하늘에서 해의 위치가 바뀌고, 그래서 바늘(영침) 그림자도 움직입니다. 앙부일구는 이 그림자로 시각과 절기를 알려 준 해시계입니다."
+    },
+    {
+      id: "kepler", letter: "R", scientist: "요하네스 케플러", lab: "KEPLER LAB", title: "행성의 진짜 길을 찾아라",
+      place: "케플러 연구실",
+      story: "케플러의 연구 기록에서 행성의 궤도 정보가 사라졌습니다. 태양 주위를 도는 행성의 진짜 길을 찾아야 합니다.",
+      question: "케플러가 밝혀낸 행성의 실제 궤도는 무엇인가?",
+      choices: ["완전한 원형 궤도", "길쭉한 타원형 궤도", "일정하지 않은 불규칙한 궤도"],
+      answerHash: "7a0f0256",
+      explain: "케플러는 행성이 태양을 한 초점으로 하는 타원 궤도를 돈다는 것을 밝혀냈습니다. 이것이 케플러의 제1법칙입니다."
+    },
+    {
+      id: "newton", letter: "E", scientist: "아이작 뉴턴", lab: "NEWTON LAB", title: "흰빛(백색광)에 숨은 너는 누구냐?",
+      place: "피직스랩 프리즘 전시품 앞",
+      story: "뉴턴의 연구실에 프리즘 하나가 놓여 있습니다. 햇빛을 비추자 흰 빛이 일곱 가지 색으로 갈라졌습니다.",
+      question: "뉴턴이 이 실험으로 발견한 사실은 무엇일까?",
+      choices: ["프리즘이 새로운 색을 만들어 낸다.", "흰 빛에는 여러 색의 빛이 섞여 있다.", "보라색 빛이 흰색으로 변한다.", "모든 색의 빛은 프리즘을 통과할 때 똑같이 꺾인다."],
+      answerHash: "6fd0866e",
+      explain: "프리즘은 색을 새로 만들지 않습니다. 흰 빛 속에 섞여 있던 여러 색의 빛이 색마다 다르게 꺾이면서 나뉘어 보이는 것입니다."
+    },
+    {
+      id: "curie", letter: "A", scientist: "마리 퀴리", lab: "CURIE LAB", title: "보이지 않는 신호를 찾아라",
+      place: "원자력 방사선 안전체험관 앞",
+      story: "마리 퀴리의 연구실에 이상한 광석 하나가 놓여 있습니다. 우라늄이 들어 있는 광석인데, 이상하게도 우라늄만으로는 설명할 수 없는 훨씬 강한 신호를 내보내고 있었습니다.",
+      question: "마리 퀴리는 보이지 않는 이 강한 신호의 정체를 무엇이라고 생각했을까?",
+      choices: ["우라늄이 갑자기 변했다.", "광석이 빛을 내고 있다.", "광석의 온도가 높아졌다.", "광석 속에 아직 발견되지 않은 방사성 물질이 있다."],
+      answerHash: "b9337bf7",
+      explain: "마리 퀴리는 광석 속에 새로운 방사성 원소가 숨어 있다고 생각했고, 끈질긴 연구 끝에 폴로늄과 라듐을 발견했습니다."
+    },
+    {
+      id: "johnson", letter: "T", scientist: "캐서린 존슨", lab: "JOHNSON LAB", title: "우주로 가는 길을 찾아라",
+      place: "인공위성·로켓·우주선 궤도 전시품 앞",
+      story: "아폴로 11호가 달 탐사를 시작합니다. 암스트롱 선장은 달을 탐사하고 안전하게 지구로 돌아와야만 합니다. 이를 위해 캐서린 존슨에게 맡겨진 중대한 임무를 확인하세요.",
+      question: "우주선이 지구를 떠나 목적지에 도착하려면?",
+      choices: ["지구는 둥그니까 아무 방향으로나 날아가도 된다.", "빠르게만 날아가면 된다.", "목적지에 맞는 정확한 경로를 계산해야 한다.", "우주에서 멈춘 뒤 방향을 바꾸면 된다."],
+      answerHash: "7e9c1633",
+      explain: "NASA의 수학자 캐서린 존슨은 우주선이 달에 갔다가 지구로 돌아오는 궤도를 정확히 계산해 아폴로 11호의 임무를 도왔습니다."
+    }
+  ];
+
+  function findLab(id) {
+    for (var i = 0; i < LABS.length; i++) if (LABS[i].id === id) return LABS[i];
+    return null;
+  }
+
+  // 32비트 FNV-1a 해시 (UTF-8 바이트 기준)
+  function hash(text) {
+    var bytes = unescape(encodeURIComponent(text));
+    var h = 0x811c9dc5;
+    for (var i = 0; i < bytes.length; i++) {
+      h ^= bytes.charCodeAt(i);
+      h = Math.imul(h, 0x01000193) >>> 0;
+    }
+    return ("0000000" + h.toString(16)).slice(-8);
+  }
+
+  // choiceIndex는 0부터 센다.
+  function checkAnswer(labId, choiceIndex) {
+    var lab = findLab(labId);
+    if (!lab || typeof choiceIndex !== "number") return false;
+    return hash("wsc2026|" + labId + "|" + choiceIndex) === lab.answerHash;
+  }
+
+  // ---------- 진행 상황 ----------
+  // { v: 1, found: { labId: 획득시각(ms) }, completedAt: ms|null, claims: { calendar: ms|null, draw: ms|null } }
+  function emptyProgress() {
+    return { v: 1, found: {}, completedAt: null, claims: { calendar: null, draw: null } };
+  }
+
+  function isTime(v) { return typeof v === "number" && isFinite(v) && v > 0; }
+
+  // 저장된 글을 읽는다. 깨졌거나 모르는 값은 버리고 빈 진행 상황에서 시작한다.
+  function parseProgress(text) {
+    var p = emptyProgress();
+    if (!text) return p;
+    var raw;
+    try { raw = JSON.parse(text); } catch (e) { return p; }
+    if (!raw || typeof raw !== "object" || raw.v !== 1) return p;
+    if (raw.found && typeof raw.found === "object") {
+      for (var i = 0; i < LABS.length; i++) {
+        var t = raw.found[LABS[i].id];
+        if (isTime(t)) p.found[LABS[i].id] = t;
+      }
+    }
+    if (isComplete(p)) p.completedAt = isTime(raw.completedAt) ? raw.completedAt : latestFound(p);
+    if (raw.claims && typeof raw.claims === "object") {
+      if (isTime(raw.claims.calendar) && foundCount(p) >= 1) p.claims.calendar = raw.claims.calendar;
+      if (isTime(raw.claims.draw) && isComplete(p)) p.claims.draw = raw.claims.draw;
+    }
+    return p;
+  }
+
+  function serialize(p) { return JSON.stringify(p); }
+
+  function clone(p) { return parseProgress(serialize(p)); }
+
+  function foundCount(p) {
+    var n = 0;
+    for (var i = 0; i < LABS.length; i++) if (p.found[LABS[i].id]) n++;
+    return n;
+  }
+
+  function isComplete(p) { return foundCount(p) === LABS.length; }
+
+  function latestFound(p) {
+    var m = 0;
+    for (var k in p.found) if (p.found[k] > m) m = p.found[k];
+    return m || null;
+  }
+
+  // 정답을 맞혔을 때 글자를 기록한다. 이미 받은 연구실은 처음 받은 시각을 유지한다.
+  function collect(p, labId, now) {
+    var next = clone(p);
+    if (!findLab(labId)) return next;
+    if (!next.found[labId]) next.found[labId] = now;
+    if (isComplete(next) && !next.completedAt) next.completedAt = now;
+    return next;
+  }
+
+  // GREAT 순서대로 받은 글자(못 받은 칸은 null)
+  function slots(p) {
+    return LABS.map(function (lab) { return p.found[lab.id] ? lab.letter : null; });
+  }
+
+  // 안내데스크 수령 가능 여부: calendar는 글자 1개 이상, draw는 GREAT 완성. 한 번만.
+  function canClaim(p, kind) {
+    if (kind === "calendar") return foundCount(p) >= 1 && !p.claims.calendar;
+    if (kind === "draw") return isComplete(p) && !p.claims.draw;
+    return false;
+  }
+
+  function claim(p, kind, now) {
+    var next = clone(p);
+    if (canClaim(next, kind)) next.claims[kind] = now;
+    return next;
+  }
+
+  function pad2(n) { return (n < 10 ? "0" : "") + n; }
+
+  // 예: "12월 25일 14:03:09"
+  function formatTime(ms, withSeconds) {
+    var d = new Date(ms);
+    var s = (d.getMonth() + 1) + "월 " + d.getDate() + "일 " + pad2(d.getHours()) + ":" + pad2(d.getMinutes());
+    return withSeconds ? s + ":" + pad2(d.getSeconds()) : s;
+  }
+
+  return {
+    CODE: CODE, LABS: LABS, findLab: findLab, hash: hash, checkAnswer: checkAnswer,
+    emptyProgress: emptyProgress, parseProgress: parseProgress, serialize: serialize,
+    foundCount: foundCount, isComplete: isComplete, collect: collect, slots: slots,
+    canClaim: canClaim, claim: claim, formatTime: formatTime
+  };
+})();
+</script>
+</body>
+</html>
