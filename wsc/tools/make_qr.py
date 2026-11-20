@@ -20,7 +20,7 @@ MUTED = (85, 96, 122)
 
 CARDS = [
     ("00-start", BASE, "위대한 만남", "미션 시작", "사라진 5개의 시크릿 코드를 찾아라",
-     None, "QR을 찍고 5곳의 연구실에서 코드를 모아 GREAT를 완성하세요!"),
+     None, "QR을 찍고 5곳의 연구실에서 코드를 모아\n세계과학회의 입장코드를 완성하세요"),
     ("01-jang-G", BASE + "?lab=jang", "장영실 연구실", "앙부일구", "「그림자의 비밀」을 밝혀라",
      "앙부일구 전시품 앞", "QR을 찍고 문제를 맞히면 시크릿 코드를 받아요"),
     ("02-kepler-R", BASE + "?lab=kepler", "요하네스 케플러 연구실", "KEPLER LAB", "행성의 진짜 길을 찾아라",
@@ -73,7 +73,8 @@ def make_card(name, url, eyebrow, lab, title, place, note):
     y = qy + 820 + 60
     if place:
         y = centered(d, y, "위치 · " + place, font(42), RED) + 24
-    centered(d, y, note, font(38), MUTED if place else RED)
+    for line in note.split("\n"):
+        y = centered(d, y, line, font(38), MUTED if place else RED) + 14
     centered(d, H - 70, url, font(26), MUTED)
 
     path = os.path.join(OUT, name + ".png")
