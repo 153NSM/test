@@ -13,7 +13,7 @@ function readWscHtml() {
 function loadWscCore() {
   const m = readWscHtml().match(/<script id="wsc-core">([\s\S]*?)<\/script>/);
   if (!m) throw new Error('wsc/index.html에 <script id="wsc-core"> 블록이 없습니다');
-  const sandbox = {};
+  const sandbox = { URL };
   vm.createContext(sandbox);
   vm.runInContext(m[1] + "\n;this.WscCore = WscCore;", sandbox, { filename: "wsc-core" });
   return sandbox.WscCore;

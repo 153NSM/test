@@ -141,3 +141,31 @@ test("시각 표시", () => {
   assert.equal(W.formatTime(d), "12월 25일 09:05");
   assert.equal(W.formatTime(d, true), "12월 25일 09:05:07");
 });
+
+test("찍은 QR 해석: 인쇄한 미션 QR 주소", () => {
+  const page = "https://153nsm.github.io/test/wsc/?lab=jang";
+  const B = "https://153nsm.github.io/test/wsc/";
+  assert.deepEqual(plain(W.parseScan(B + "?lab=kepler", page)), { type: "lab", id: "kepler" });
+  assert.deepEqual(plain(W.parseScan(B, page)), { type: "home" });
+  assert.deepEqual(plain(W.parseScan(B + "index.html?lab=curie", page)), { type: "lab", id: "curie" });
+  assert.deepEqual(plain(W.parseScan("  " + B + "?lab=johnson\n", page)), { type: "lab", id: "johnson" });
+  for (const lab of W.LABS) assert.equal(W.parseScan(B + "?lab=" + lab.id, page).id, lab.id);
+});
+
+test("찍은 QR 해석: 지금 페이지와 같은 폴더 주소도 받는다 (다른 곳에 올렸을 때)", () => {
+  const page = "http://localhost:8000/wsc/index.html";
+  assert.deepEqual(plain(W.parseScan("http://localhost:8000/wsc/?lab=newton", page)), { type: "lab", id: "newton" });
+  assert.deepEqual(plain(W.parseScan("http://localhost:8000/wsc/index.html", page)), { type: "home" });
+});
+
+test("찍은 QR 해석: 미션과 상관없는 QR은 이동하지 않는다", () => {
+  const page = "https://153nsm.github.io/test/wsc/";
+  for (const bad of [
+    "", "hello", "GREAT", "https://example.com/", "https://example.com/test/wsc/?lab=jang",
+    "https://153nsm.github.io/test/", "https://153nsm.github.io/test/wsc/other.html?lab=jang",
+    "https://153nsm.github.io/test/wsc/?lab=nobody", "http://153nsm.github.io/test/wsc/?lab=jang",
+    "javascript:alert(1)", "https://153nsm.github.io.evil.com/test/wsc/?lab=jang", null,
+  ]) {
+    assert.equal(W.parseScan(bad, page).type, "other", String(bad));
+  }
+});
